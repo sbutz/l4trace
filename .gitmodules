@@ -1,0 +1,6 @@
+[submodule "LeechCore"]
+	path = LeechCore
+	url = git@github.com:ufrisk/LeechCore.git
+[submodule "LeechCore-plugins"]
+	path = LeechCore-plugins
+	url = git@github.com:ufrisk/LeechCore-plugins.git
