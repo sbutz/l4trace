@@ -1,23 +1,43 @@
-#include <cstring>
+#include "trace_reader.h"
 #include <iostream>
-#include <leechcore.h>
+#include <signal.h>
+#include <unistd.h>
+
+
+bool aborted = false;
+
+void signal_callback_handler(int signum) {
+	if (!aborted)
+		aborted = true;
+	else
+		exit(signum);
+}
 
 int main()
 {
-	LC_CONFIG cfg = { 0 };
-	HANDLE lc_ctx;
+	signal(SIGINT, signal_callback_handler);
 
-	//cfg.paMax = 0x500000;
-	cfg.dwVersion = LC_CONFIG_VERSION;
-	strncpy(cfg.szDevice, "fpga", sizeof(cfg.szDevice));
-	cfg.dwPrintfVerbosity = 0xf;
+	/*
+	 * High level:
+	 *
+	 * while not ctr-c:
+	 * 	if (buf available)
+	 * 		read next buf
+	 * 		write to file
+	 * 	sleep
+	 *
+	 * if not raw
+	 * 	convert to ctf
+	 */
 
-	lc_ctx = LcCreate(&cfg);
-	if (!lc_ctx) {
-		std::cerr << __func__ << ": Cannot create leechcore context" << std::endl;
-		return 1;
+	TraceReader reader = TraceReader();
+	while (!aborted) {
+		usleep(1000*1000);
+		//usleep(1000*10);
+		std::cout << "Looping..." << std::endl;
 	}
-	LcClose(lc_ctx);
+
+	std::cout << "Exiting..." << std::endl;
 
 	return 0;
 }

@@ -1,12 +1,14 @@
-CPPFLAGS = -ILeechCore/leechcore -DLINUX
-LDFLAGS = -Llib
-LDLIBS = -l:leechcore.so
+CPPFLAGS = -ILeechCore/includes -DLINUX
+LDFLAGS = -LLeechCore/files -LLeechCore-plugins/files
+LDLIBS = -l:leechcore.so -ldl -lstdc++
 
-SRCS = main.cpp
+SRCS = main.cpp trace_reader.cpp
 OBJS = $(SRCS:.cpp=.o)
 
-l4trace: leechcore $(OBJS)
-	c++ $(LDFLAGS) $(OBJS) $(LDLIBS) -o $@
+all: leechcore l4trace run
+
+l4trace: $(OBJS)
+	g++ $(LDFLAGS) $(OBJS) $(LDLIBS) -o $@
 
 .PHONY: run
 run: l4trace
@@ -21,4 +23,4 @@ leechcore:
 	cp LeechCore-plugins/files/leechcore_ft601_driver_linux.so lib/
 
 clean:
-	rm -f l4trace *.o
+	rm -rf lib/ l4trace *.o
