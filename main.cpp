@@ -3,7 +3,6 @@
 #include <signal.h>
 #include <unistd.h>
 
-
 bool aborted = false;
 
 void signal_callback_handler(int signum) {
@@ -30,8 +29,10 @@ int main()
 	 * 	convert to ctf
 	 */
 
-	TraceReader reader = TraceReader();
+	TraceReader reader = TraceReader(0x8);
 	while (!aborted) {
+		if (reader.isNewRecordAvailable())
+			std::cout << "Records available..." << std::endl;
 		usleep(1000*1000);
 		//usleep(1000*10);
 		std::cout << "Looping..." << std::endl;
@@ -41,3 +42,4 @@ int main()
 
 	return 0;
 }
+

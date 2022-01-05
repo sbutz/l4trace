@@ -2,7 +2,7 @@ CPPFLAGS = -ILeechCore/includes -DLINUX
 LDFLAGS = -LLeechCore/files -LLeechCore-plugins/files
 LDLIBS = -l:leechcore.so -ldl -lstdc++
 
-SRCS = main.cpp trace_reader.cpp
+SRCS = main.cpp trace_reader.cpp page_table.cpp device.cpp
 OBJS = $(SRCS:.cpp=.o)
 
 all: leechcore l4trace run
@@ -24,3 +24,4 @@ leechcore:
 
 clean:
 	rm -rf lib/ l4trace *.o
+
