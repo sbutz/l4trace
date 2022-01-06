@@ -16,7 +16,7 @@ PageTable::PageTable(Device *dev, Address cr3)
  * For more info refer to https://www.lowlevel.eu/wiki/Paging.
  */
 Address
-PageTable::getPhysicalAddress(Address virt)
+PageTable::virt_to_phys(Address virt)
 {
 	const uint64_t pagemask = ~(pagesize-1);
 	const uint64_t flag_present = 0x1;
@@ -48,7 +48,8 @@ PageTable::getPhysicalAddress(Address virt)
 
 		/* Is entry valid? */
 		if (!(pte & flag_present))
-			return 0;
+			errx(1, "%s: page table entry not present (virt=%#lx)",
+					__func__, virt);
 
 		mask >>= 9;
 		pdir_phys = pte & pagemask;

@@ -1,3 +1,4 @@
+#include "fiasco/ktrace_events.h"
 #include "trace_reader.h"
 #include <iostream>
 #include <signal.h>
@@ -30,13 +31,32 @@ int main()
 	 */
 
 	TraceReader reader = TraceReader(0x8);
+	uint64_t i = 0;
+	uint64_t last_num = 0;
 	while (!aborted) {
-		if (reader.isNewRecordAvailable())
-			std::cout << "Records available..." << std::endl;
-		usleep(1000*1000);
-		//usleep(1000*10);
-		std::cout << "Looping..." << std::endl;
+		//std::cout << "Looping..." << std::endl;
+
+		if (!reader.is_record_available()) {
+			//usleep(1000*10);
+			usleep(1000*10);
+			continue;
+		}
+		//std::cout << "Records available..." << std::endl;
+
+		l4_tracebuffer_entry_t record = reader.get_record();
+		//std::cout << "number: " << record._number << std::endl;
+
+		//TODO: catch lost events
+		if (last_num != 0 && record._number != last_num+1)
+			std::cout << "Lost " << record._number - last_num
+				<< " events" << std::endl;
+		last_num = record._number;
+
+
+		i++;
+		std::cout << "\r i=" << i << std::flush;
 	}
+	std::cout << std::endl;
 
 	std::cout << "Exiting..." << std::endl;
 
