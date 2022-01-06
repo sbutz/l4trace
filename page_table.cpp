@@ -1,7 +1,11 @@
 #include "page_table.h"
+#include <cassert>
+#include <err.h>
 #include <iostream>
 
-#include <err.h>
+static const uint64_t pagemask = ~(pagesize-1);
+static const uint64_t flag_present = 0x1;
+static const uint64_t flag_large   = 0x1 << 7;
 
 PageTable::PageTable(Device *dev, Address cr3)
 	: dev(dev), cr3(cr3)
@@ -18,10 +22,6 @@ PageTable::PageTable(Device *dev, Address cr3)
 Address
 PageTable::virt_to_phys(Address virt)
 {
-	const uint64_t pagemask = ~(pagesize-1);
-	const uint64_t flag_present = 0x1;
-	const uint64_t flag_large   = 0x1 << 7;
-
 	/*
 	 * The address has 64 bit in total. 48 of them are assumed to usable
 	 * as follows:
@@ -37,10 +37,8 @@ PageTable::virt_to_phys(Address virt)
 
 	for (int shift = 39; shift >= 12; shift -= 9)
 	{
-		/* Read page directory */
-		uint8_t buf[pagesize] = {0};
-		this->dev->read(pdir_phys & pagemask , pagesize, buf);
-		Address *pdir = (Address *) buf;
+		/* Read page directory (possibly cached) */
+		page_dir_t pdir = this->get_page_dir(pdir_phys & pagemask);
 
 		/* Find entry */
 		int offset = (virt & mask) >> shift;
@@ -60,5 +58,21 @@ PageTable::virt_to_phys(Address virt)
 	}
 
 	return (pte & ~mask) | (virt & mask);
+}
+
+page_dir_t PageTable::get_page_dir(Address a)
+{
+	assert((a & pagemask) == a);
+
+	auto it = this->page_dir_cache.find(a);
+	if (it != this->page_dir_cache.end()) {
+		return it->second;
+	}
+	else {
+		page_dir_t tmp;
+		this->dev->read(a, pagesize, (uint8_t *) tmp.data());
+		this->page_dir_cache[a] = tmp;
+		return tmp;
+	}
 }
 
