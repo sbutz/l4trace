@@ -3,7 +3,6 @@
 #include "fiasco/pcileechinfo.h"
 #include "page_table.h"
 #include "trace_reader.h"
-#include <cassert>
 #include <err.h>
 #include <iostream>
 
@@ -34,6 +33,7 @@ TraceReader::TraceReader(int loglevel)
 	this->tbuf_end = status.window[1].tracebuffer + status.window[1].size;
 	this->tbuf_size = this->tbuf_end - this->tbuf_start;
 	this->last_read = status.current;
+	this->last_num = 0;
 
 	std::cout << "tbuf_start: " << std::hex << tbuf_start << std::endl;
 	std::cout << "tbuf_start_phys: " << std::hex << tbuf_start_phys << std::endl;
@@ -102,7 +102,7 @@ std::vector<l4_tracebuffer_entry_t> TraceReader::get_new_records()
 
 struct Tracebuffer_status TraceReader::get_status()
 {
-	struct Tracebuffer_status status;
+	struct Tracebuffer_status status = { 0 };
 
 	this->dev->read(
 		this->ptab->virt_to_phys(this->pi->Tbuf_status_page),

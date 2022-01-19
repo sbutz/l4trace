@@ -13,7 +13,7 @@ class Pcileechinfo;
 class TraceReader
 {
 public:
-	TraceReader(int loglevel);
+	explicit TraceReader(int loglevel);
 	~TraceReader();
 	std::vector<l4_tracebuffer_entry_t> get_new_records();
 
