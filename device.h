@@ -4,7 +4,8 @@
 #include <leechcore.h>
 #include <string>
 
-const size_t pagesize = 4096;
+const uint64_t pagesize = 4096;
+const uint64_t pagemask = ~(pagesize-1);
 
 class PageTable;
 class Kip;

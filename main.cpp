@@ -1,4 +1,3 @@
-#include "fiasco/ktrace_events.h"
 #include "trace_reader.h"
 #include <iostream>
 #include <csignal>
@@ -35,30 +34,23 @@ int main()
 	//
 	//multiple reads at once
 	//- always read whole buffer [DONE]
-	//- read required parts (2 reads or 1 scatter read) [TODO]
+	//- read required parts (2 reads or 1 scatter read) [DONE]
 	while (!aborted) {
-	    //TODO: avoid reallocation of buffer
-	    // pass buffer or alloc in TraceReader constructor
-		std::vector<l4_tracebuffer_entry_t> records = reader.get_new_records();
-
-		if (records.empty()) {
-			usleep(1000*1);
+		std::pair<size_t,size_t> result = reader.get_new_records();
+		if (result.first == 0) {
+			usleep(1000*10);
 			continue;
 		}
-
-		if (last_num != 0 && records.front()._number != last_num+1) {
-			std::cout << "Lost " << records.front()._number - last_num
-				<< " events" << std::endl;
+		else {
+		    if (result.second)
+                std::cout << "Lost Events: " << result.second << std::endl;
+            i += result.first;
+            std::cout << std::dec << "\r i=" << i << std::flush;
 		}
-		last_num = records.back()._number;
-
-		i += records.size();
-		std::cout << std::dec << "\r i=" << i << std::flush;
-
 		//TODO: write to file
 	}
 
-	//TODO: convert to ctf
+    //TODO: convert to ctf
 
 	return 0;
 }

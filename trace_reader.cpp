@@ -21,12 +21,18 @@ TraceReader::TraceReader(int loglevel)
 	this->pi = new Pcileechinfo();
 	this->dev->read(this->dev->kip->_res5[0], sizeof(*this->pi), this->pi);
 
+	/*
+	 * Validate read info struct and setup address resolution.
+	 */
 	if (!this->pi->Tbuf_status_page)
 		errx(1, "%s: no Tbuf_status_page found", __func__);
 
 	this->ptab = new PageTable(this->dev, pi->kdir);
 	this->dev->add_page_table(this->ptab);
 
+	/*
+	 * Read Tracebuffer_status to get its address, size and the current position.
+	 */
 	struct Tracebuffer_status status = this->get_status();
 	this->tbuf_start = status.window[0].tracebuffer;
 	this->tbuf_start_phys = this->ptab->virt_to_phys(this->tbuf_start);
@@ -34,6 +40,12 @@ TraceReader::TraceReader(int loglevel)
 	this->tbuf_size = this->tbuf_end - this->tbuf_start;
 	this->last_read = status.current;
 	this->last_num = 0;
+
+	/*
+	 * Initialize the internal buffer, the remote tracebuffer will be copied into.
+	 */
+    size_t n = this->tbuf_size / sizeof(l4_tracebuffer_entry_t);
+    this->buffer.resize(n);
 
 	std::cout << "tbuf_start: " << std::hex << tbuf_start << std::endl;
 	std::cout << "tbuf_start_phys: " << std::hex << tbuf_start_phys << std::endl;
@@ -49,55 +61,44 @@ TraceReader::~TraceReader()
 	delete this->dev;
 }
 
-std::vector<l4_tracebuffer_entry_t> TraceReader::get_new_records()
+std::pair<size_t,size_t> TraceReader::get_new_records()
 {
-	size_t n = this->tbuf_size / sizeof(l4_tracebuffer_entry_t);
-	std::vector<l4_tracebuffer_entry_t> tracebuffer;
-	tracebuffer.resize(n);
-	std::vector<l4_tracebuffer_entry_t> records;
-
+    std::pair<size_t,size_t> result(0,0);
 	struct Tracebuffer_status status = this->get_status();
 
-	/* No trace records available */
+	/* No trace records available yet */
 	if (status.current == 0)
-		return records;
+		return result;
 
-	//TODO: dont always read full buffer
-	this->dev->read_virt(this->tbuf_start, this->tbuf_size,
-		(uint8_t *) tracebuffer.data());
+	result.first = this->update_buffer(this->last_read, status.current);
 
-	int current_idx = (status.current - this->tbuf_start) /
-		sizeof(l4_tracebuffer_entry_t);
-	int last_read_idx = (this->last_read - this->tbuf_start) /
-		sizeof(l4_tracebuffer_entry_t);
+    /* Detect missed records */
+    size_t idx_begin = (this->last_read - this->tbuf_start) / sizeof(l4_tracebuffer_entry_t);
+    uint64_t next_num = this->buffer[idx_begin]._number;
+    if (next_num != this->last_num + 1)
+        result.second = next_num - this->last_num;
 
-	if (this->last_read == 0) {
-		records.insert(records.begin(), tracebuffer.begin(),
-			tracebuffer.begin()+current_idx+1);
-	}
-	else if (this->last_read == status.current &&
-		 this->last_num == tracebuffer[current_idx]._number) {
-		/* No new records */
-		return records;
-	}
-	else if (this->last_read >= status.current) {
-		records.insert(records.end(),
-			tracebuffer.begin()+last_read_idx+1,
-			tracebuffer.end());
-		records.insert(records.end(),
-			tracebuffer.begin(),
-			tracebuffer.begin()+current_idx+1);
-	}
-	else /* this->last < status.current */ {
-		records.insert(records.end(),
-			tracebuffer.begin()+last_read_idx+1,
-			tracebuffer.begin()+current_idx+1);
-	}
+    this->last_read = status.current;
+    size_t idx_end = (this->last_read - this->tbuf_start) / sizeof(l4_tracebuffer_entry_t) - 1;
+    this->last_num = this->buffer[idx_end]._number;
 
-	this->last_read = status.current;
-	this->last_num = records.back()._number;
+    return result;
+}
 
-	return records;
+size_t TraceReader::update_buffer(Address start, Address end) {
+    if (start < end) {
+        /* align addresses */
+        start = start & pagemask;
+        end = end % pagesize == 0 ? end : (end & pagemask) + pagesize;
+        size_t size = end - start;
+        size_t idx = (start - this->tbuf_start) / sizeof(l4_tracebuffer_entry_t);
+
+       this->dev->read_virt(start, size, &this->buffer[idx]);
+       return size / sizeof(l4_tracebuffer_entry_t);
+    } else {
+        return this->update_buffer(start, this->tbuf_end) +
+            this->update_buffer(this->tbuf_start, end);
+    }
 }
 
 struct Tracebuffer_status TraceReader::get_status()

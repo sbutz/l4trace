@@ -15,14 +15,20 @@ class TraceReader
 public:
 	explicit TraceReader(int loglevel);
 	~TraceReader();
-	std::vector<l4_tracebuffer_entry_t> get_new_records();
+	std::pair<size_t,size_t> get_new_records();
 
 private:
 	struct Tracebuffer_status get_status();
+	//TODO: create class MappedBuffer<>(dev, start, size)
+	// update()
+	// update(start, end)
+	// get(element)
+	size_t update_buffer(Address start, Address end);
 
 	Device *dev;
 	Pcileechinfo *pi;
 	PageTable *ptab;
+	std::vector<l4_tracebuffer_entry_t> buffer;
 
 	Address tbuf_start;
 	Address tbuf_start_phys;

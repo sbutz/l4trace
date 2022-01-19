@@ -2,9 +2,7 @@
 #include "page_table.h"
 #include <cassert>
 #include <err.h>
-#include <iostream>
 
-static const uint64_t pagemask = ~(pagesize-1);
 static const uint64_t flag_present = 0x1;
 static const uint64_t flag_large   = 0x1 << 7;
 
