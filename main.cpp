@@ -1,7 +1,7 @@
 #include "fiasco/ktrace_events.h"
 #include "trace_reader.h"
 #include <iostream>
-#include <signal.h>
+#include <csignal>
 #include <unistd.h>
 
 bool aborted = false;
