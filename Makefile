@@ -1,4 +1,4 @@
-CPPFLAGS = -ILeechCore/includes -DLINUX
+CPPFLAGS = -ILeechCore/includes -DLINUX -g
 LDFLAGS = -LLeechCore/files -LLeechCore-plugins/files
 LDLIBS = -l:leechcore.so -ldl -lstdc++
 
