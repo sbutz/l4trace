@@ -1,29 +1,33 @@
 #pragma once
 
-#include "device.h"
-#include "fiasco/kip.h"
+#include "fiasco/fiasco.h"
 #include "fiasco/ktrace_events.h"
-#include "fiasco/pcileechinfo.h"
-#include "page_table.h"
 #include <leechcore.h>
+#include <vector>
+
+class Device;
+class Kip;
+class PageTable;
+class Pcileechinfo;
 
 class TraceReader
 {
 public:
 	TraceReader(int loglevel);
 	~TraceReader();
-	bool is_record_available();
-	l4_tracebuffer_entry_t get_record();
+	std::vector<l4_tracebuffer_entry_t> get_new_records();
 
 private:
 	struct Tracebuffer_status get_status();
 
-	//TODO: use &references
 	Device *dev;
 	Pcileechinfo *pi;
 	PageTable *ptab;
 
 	Address tbuf_start;
+	Address tbuf_start_phys;
 	Address tbuf_end;
+	size_t tbuf_size;
 	Address last_read;
+	uint64_t last_num;
 };

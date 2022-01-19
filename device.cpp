@@ -1,9 +1,11 @@
 #include "device.h"
+#include "fiasco/kip.h"
+#include "page_table.h"
+#include <cassert>
 #include <cstdlib>
 #include <cstring>
 #include <err.h>
 #include <vector>
-
 
 static HANDLE lc_init(std::string name, int loglevel);
 static void *emalloc(size_t size);
@@ -39,10 +41,42 @@ Device::~Device()
 	LcClose(this->lc_ctx);
 }
 
+void Device::add_page_table(PageTable *ptab)
+{
+	this->ptab = ptab;
+}
+
 void Device::read(Address addr, size_t size, void *buf)
 {
 	if (!LcRead(this->lc_ctx, (ULONG64)addr, size, (PBYTE)buf))
-		errx(1, "%s: LcRead failed", __func__);
+		errx(1, "%s: LcRead failed for %#lx", __func__, addr);
+}
+
+void Device::read_virt(Address addr, size_t size, void *buf)
+{
+	PPMEM_SCATTER ppmens;
+
+	assert(this->ptab != nullptr);
+	/* XXX: For now all addresses are page aligned */
+	assert(addr % pagesize == 0);
+	assert(size > 0 && size % pagesize == 0);
+
+	BOOL result = LcAllocScatter2(size, (PBYTE)buf, size/pagesize, &ppmens);
+	if (!result)
+		errx(1, "%s: LcAllocScatter2 failed", __func__);
+	for (int i = 0; i < size/pagesize; i++) {
+		ppmens[i]->f = false;
+		/* Virtual address might no be continous. */
+		ppmens[i]->qwA = this->ptab->virt_to_phys(addr + i*pagesize);
+	}
+
+	LcReadScatter(this->lc_ctx, size/pagesize, ppmens);
+	for (int i = 0; i < size/pagesize; i++) {
+		if (!ppmens[i]->f)
+			errx(1, "%s: LcReadScatter failed", __func__);
+	}
+
+	LcMemFree(ppmens);
 }
 
 static HANDLE lc_init(std::string name, int loglevel)

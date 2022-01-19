@@ -1,10 +1,11 @@
 #pragma once
 
-#include "device.h"
 #include "fiasco/fiasco.h"
 #include <array>
 #include <leechcore.h>
 #include <map>
+
+class Device;
 
 typedef std::array<Address, 512> page_dir_t;
 

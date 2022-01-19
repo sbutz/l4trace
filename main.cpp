@@ -17,48 +17,46 @@ int main()
 {
 	signal(SIGINT, signal_callback_handler);
 
-	/*
-	 * High level:
-	 *
-	 * while not ctr-c:
-	 * 	if (buf available)
-	 * 		read next buf
-	 * 		write to file
-	 * 	sleep
-	 *
-	 * if not raw
-	 * 	convert to ctf
-	 */
-
 	TraceReader reader = TraceReader(0x8);
 	uint64_t i = 0;
 	uint64_t last_num = 0;
-	while (!aborted) {
-		//std::cout << "Looping..." << std::endl;
 
-		if (!reader.is_record_available()) {
-			//usleep(1000*10);
-			usleep(1000*10);
+	//aktuell:
+	//status read (virt_to_phys 3 + status read 1) = 4
+	//record read (virt_to_phys 3 + record read 1) = 4
+	//8 reads for one record
+	//
+	//virt_to_phys reduzieren
+	//ideen:
+	//- cache status address
+	//- calc record address
+	//- cache pdir pages (more generic) [DONE]
+	//2 reads for one record
+	//
+	//multiple reads at once
+	//- always read whole buffer [TODO]
+	//- read required parts (2 reads or 1 scatter read)
+	while (!aborted) {
+		std::vector<l4_tracebuffer_entry_t> records = reader.get_new_records();
+
+		if (records.empty()) {
+			usleep(1000*1);
 			continue;
 		}
-		//std::cout << "Records available..." << std::endl;
 
-		l4_tracebuffer_entry_t record = reader.get_record();
-		//std::cout << "number: " << record._number << std::endl;
-
-		//TODO: catch lost events
-		if (last_num != 0 && record._number != last_num+1)
-			std::cout << "Lost " << record._number - last_num
+		if (last_num != 0 && records.front()._number != last_num+1) {
+			std::cout << "Lost " << records.front()._number - last_num
 				<< " events" << std::endl;
-		last_num = record._number;
+		}
+		last_num = records.back()._number;
 
+		i += records.size();
+		std::cout << std::dec << "\r i=" << i << std::flush;
 
-		i++;
-		std::cout << "\r i=" << i << std::flush;
+		//TODO: write to file
 	}
-	std::cout << std::endl;
 
-	std::cout << "Exiting..." << std::endl;
+	//TODO: convert to ctf
 
 	return 0;
 }

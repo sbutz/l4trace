@@ -1,3 +1,4 @@
+#include "device.h"
 #include "page_table.h"
 #include <cassert>
 #include <err.h>

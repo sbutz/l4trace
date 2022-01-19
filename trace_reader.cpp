@@ -1,3 +1,7 @@
+#include "device.h"
+#include "fiasco/kip.h"
+#include "fiasco/pcileechinfo.h"
+#include "page_table.h"
 #include "trace_reader.h"
 #include <cassert>
 #include <err.h>
@@ -22,18 +26,20 @@ TraceReader::TraceReader(int loglevel)
 		errx(1, "%s: no Tbuf_status_page found", __func__);
 
 	this->ptab = new PageTable(this->dev, pi->kdir);
-
+	this->dev->add_page_table(this->ptab);
 
 	struct Tracebuffer_status status = this->get_status();
 	this->tbuf_start = status.window[0].tracebuffer;
-	this->tbuf_end = status.window[0].tracebuffer + status.window[0].size
-		+ status.window[1].size;
+	this->tbuf_start_phys = this->ptab->virt_to_phys(this->tbuf_start);
+	this->tbuf_end = status.window[1].tracebuffer + status.window[1].size;
+	this->tbuf_size = this->tbuf_end - this->tbuf_start;
 	this->last_read = status.current;
 
 	std::cout << "tbuf_start: " << std::hex << tbuf_start << std::endl;
+	std::cout << "tbuf_start_phys: " << std::hex << tbuf_start_phys << std::endl;
 	std::cout << "tbuf_end: " << std::hex << tbuf_end << std::endl;
-	std::cout << "tbuf_size: " << tbuf_end - tbuf_start << std::endl;
-	std::cout << "num: " << (tbuf_end - tbuf_start) / sizeof(l4_tracebuffer_entry_t) << std::endl;
+	std::cout << "tbuf_size: " << tbuf_size << std::endl;
+	std::cout << "num: " << tbuf_size / sizeof(l4_tracebuffer_entry_t) << std::endl;
 }
 
 TraceReader::~TraceReader()
@@ -43,48 +49,54 @@ TraceReader::~TraceReader()
 	delete this->dev;
 }
 
-uint64_t version = 0;
-bool TraceReader::is_record_available()
+std::vector<l4_tracebuffer_entry_t> TraceReader::get_new_records()
 {
+	size_t n = this->tbuf_size / sizeof(l4_tracebuffer_entry_t);
+	std::vector<l4_tracebuffer_entry_t> tracebuffer;
+	tracebuffer.resize(n);
+	std::vector<l4_tracebuffer_entry_t> records;
+
 	struct Tracebuffer_status status = this->get_status();
 
-	if (status.window[0].version != version) {
-		version = status.window[0].version;
-		std::cout << "new version: " << version << std::endl;
+	/* No trace records available */
+	if (status.current == 0)
+		return records;
+
+	this->dev->read_virt(this->tbuf_start, this->tbuf_size,
+		(uint8_t *) tracebuffer.data());
+
+	int current_idx = (status.current - this->tbuf_start) /
+		sizeof(l4_tracebuffer_entry_t);
+	int last_read_idx = (this->last_read - this->tbuf_start) /
+		sizeof(l4_tracebuffer_entry_t);
+
+	if (this->last_read == 0) {
+		records.insert(records.begin(), tracebuffer.begin(),
+			tracebuffer.begin()+current_idx+1);
+	}
+	else if (this->last_read == status.current &&
+		 this->last_num == tracebuffer[current_idx]._number) {
+		/* No new records */
+		return records;
+	}
+	else if (this->last_read >= status.current) {
+		records.insert(records.end(),
+			tracebuffer.begin()+last_read_idx+1,
+			tracebuffer.end());
+		records.insert(records.end(),
+			tracebuffer.begin(),
+			tracebuffer.begin()+current_idx+1);
+	}
+	else /* this->last < status.current */ {
+		records.insert(records.end(),
+			tracebuffer.begin()+last_read_idx+1,
+			tracebuffer.begin()+current_idx+1);
 	}
 
-	if (status.current == 0) {
-		return false;
-	}
-	else if (this->last_read == 0) {
-		// XXX: We never read the first triggered event.
-		// XXX: Just leave this for now.
-		// TODO: add next_read variable to fix this
-		this->last_read = status.current;
-		return false;
-	}
-	else {
-		return status.current != this->last_read;
-	}
-}
+	this->last_read = status.current;
+	this->last_num = records.back()._number;
 
-//TODO: read multiple records at once (from last read until current, may cross end)
-l4_tracebuffer_entry_t TraceReader::get_record()
-{
-	Address next;
-	l4_tracebuffer_entry_t record = { 0 };
-
-	/* The tracebuffer should contain events. */
-	assert(this->last_read != 0);
-
-	next = this->last_read + sizeof(l4_tracebuffer_entry_t);
-	if (next > this->tbuf_end)
-		next = this->tbuf_start;
-	this->last_read = next;
-	next = this->ptab->virt_to_phys(next);
-	this->dev->read(next, sizeof(record), &record);
-
-	return record;
+	return records;
 }
 
 struct Tracebuffer_status TraceReader::get_status()
