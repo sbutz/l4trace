@@ -1,3 +1,4 @@
 *.o
+.idea/
 l4trace
 lib/
