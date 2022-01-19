@@ -62,6 +62,7 @@ std::vector<l4_tracebuffer_entry_t> TraceReader::get_new_records()
 	if (status.current == 0)
 		return records;
 
+	//TODO: dont always read full buffer
 	this->dev->read_virt(this->tbuf_start, this->tbuf_size,
 		(uint8_t *) tracebuffer.data());
 

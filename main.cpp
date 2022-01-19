@@ -21,22 +21,24 @@ int main()
 	uint64_t i = 0;
 	uint64_t last_num = 0;
 
-	//aktuell:
+	//current:
 	//status read (virt_to_phys 3 + status read 1) = 4
 	//record read (virt_to_phys 3 + record read 1) = 4
 	//8 reads for one record
 	//
-	//virt_to_phys reduzieren
-	//ideen:
+	//virt_to_phys reduce
+	//ideas:
 	//- cache status address
 	//- calc record address
 	//- cache pdir pages (more generic) [DONE]
 	//2 reads for one record
 	//
 	//multiple reads at once
-	//- always read whole buffer [TODO]
-	//- read required parts (2 reads or 1 scatter read)
+	//- always read whole buffer [DONE]
+	//- read required parts (2 reads or 1 scatter read) [TODO]
 	while (!aborted) {
+	    //TODO: avoid reallocation of buffer
+	    // pass buffer or alloc in TraceReader constructor
 		std::vector<l4_tracebuffer_entry_t> records = reader.get_new_records();
 
 		if (records.empty()) {
