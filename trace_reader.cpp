@@ -7,7 +7,7 @@
 #include <iostream>
 #include <cassert>
 
-TraceReader::TraceReader(std::string path, int loglevel)
+TraceReader::TraceReader(std::string path)
 {
 	/*
 	 * Initialize screamer device.
@@ -16,8 +16,10 @@ TraceReader::TraceReader(std::string path, int loglevel)
 	 * 0,1  windows only
 	 * 2 	old normal read
 	 * 3 	old tiny read       <- best
+	 *
+	 * Loglevel: heavy performance penalty if greater zero
 	 */
-	this->dev = new Device("FPGA://algo=3", loglevel);
+	this->dev = new Device("FPGA://algo=2", 0x0);
 
 	/*
 	 * Read info struct written by the JDB extension.

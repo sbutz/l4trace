@@ -14,7 +14,7 @@ class Pcileechinfo;
 class TraceReader
 {
 public:
-	TraceReader(std::string path, int loglevel);
+	explicit TraceReader(std::string path);
 	~TraceReader();
 	std::pair<size_t,size_t> get_new_records();
     void write_new_records();

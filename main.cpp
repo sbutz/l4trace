@@ -16,7 +16,7 @@ int main()
 {
 	signal(SIGINT, signal_callback_handler);
 
-	TraceReader reader("/tmp/l4trace.out", 0x8);
+	TraceReader reader("/tmp/l4trace.out");
 	uint64_t count = 0;
 
 	while (!aborted) {
