@@ -4,6 +4,7 @@
 #include "fiasco/ktrace_events.h"
 #include <leechcore.h>
 #include <vector>
+#include <fstream>
 
 class Device;
 class Kip;
@@ -13,9 +14,10 @@ class Pcileechinfo;
 class TraceReader
 {
 public:
-	explicit TraceReader(int loglevel);
+	TraceReader(std::string path, int loglevel);
 	~TraceReader();
 	std::pair<size_t,size_t> get_new_records();
+    void write_new_records();
 
 private:
 	struct Tracebuffer_status get_status();
@@ -29,11 +31,13 @@ private:
 	Pcileechinfo *pi;
 	PageTable *ptab;
 	std::vector<l4_tracebuffer_entry_t> buffer;
+	std::fstream file;
 
 	Address tbuf_start;
 	Address tbuf_start_phys;
 	Address tbuf_end;
 	size_t tbuf_size;
 	Address last_read;
+    Address last_written;
 	uint64_t last_num;
 };

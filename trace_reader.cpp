@@ -5,13 +5,19 @@
 #include "trace_reader.h"
 #include <err.h>
 #include <iostream>
+#include <cassert>
 
-TraceReader::TraceReader(int loglevel)
+TraceReader::TraceReader(std::string path, int loglevel)
 {
 	/*
 	 * Initialize screamer device.
+	 *
+	 * Algorithm:
+	 * 0,1  windows only
+	 * 2 	old normal read
+	 * 3 	old tiny read       <- best
 	 */
-	this->dev = new Device("fpga", loglevel);
+	this->dev = new Device("FPGA://algo=3", loglevel);
 
 	/*
 	 * Read info struct written by the JDB extension.
@@ -39,6 +45,7 @@ TraceReader::TraceReader(int loglevel)
 	this->tbuf_end = status.window[1].tracebuffer + status.window[1].size;
 	this->tbuf_size = this->tbuf_end - this->tbuf_start;
 	this->last_read = status.current;
+    this->last_written = status.current;
 	this->last_num = 0;
 
 	/*
@@ -46,6 +53,11 @@ TraceReader::TraceReader(int loglevel)
 	 */
     size_t n = this->tbuf_size / sizeof(l4_tracebuffer_entry_t);
     this->buffer.resize(n);
+
+    /*
+     * Open output file.
+     */
+    this->file.open(path, std::ios::out | std::ios::binary);
 
 	std::cout << "tbuf_start: " << std::hex << tbuf_start << std::endl;
 	std::cout << "tbuf_start_phys: " << std::hex << tbuf_start_phys << std::endl;
@@ -56,6 +68,7 @@ TraceReader::TraceReader(int loglevel)
 
 TraceReader::~TraceReader()
 {
+    this->file.close();
 	delete this->ptab;
 	delete this->pi;
 	delete this->dev;
@@ -63,6 +76,9 @@ TraceReader::~TraceReader()
 
 std::pair<size_t,size_t> TraceReader::get_new_records()
 {
+    /* Need to call write_new_records() to not loose records */
+    assert(this->last_written == this->last_read);
+
     std::pair<size_t,size_t> result(0,0);
 	struct Tracebuffer_status status = this->get_status();
 
@@ -83,6 +99,22 @@ std::pair<size_t,size_t> TraceReader::get_new_records()
     this->last_num = this->buffer[idx_end]._number;
 
     return result;
+}
+
+void TraceReader::write_new_records() {
+    size_t last_idx = (this->last_written - this->tbuf_start) / sizeof(l4_tracebuffer_entry_t);
+    size_t current_idx = (this->last_read - this->tbuf_start) / sizeof(l4_tracebuffer_entry_t);
+    size_t max_idx = this->tbuf_size / sizeof(l4_tracebuffer_entry_t);
+    size_t min_idx = 0;
+
+    if (last_idx <= current_idx) {
+        this->file.write((const char *) &this->buffer[last_idx], (current_idx-last_idx) * sizeof(l4_tracebuffer_entry_t));
+    }
+    else {
+        this->file.write((const char *) &this->buffer[last_idx], (max_idx-last_idx) * sizeof(l4_tracebuffer_entry_t));
+        this->file.write((const char *) &this->buffer[min_idx], (current_idx-min_idx) * sizeof(l4_tracebuffer_entry_t));
+    }
+    this->last_written = this->last_read;
 }
 
 size_t TraceReader::update_buffer(Address start, Address end) {

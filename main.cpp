@@ -16,7 +16,7 @@ int main()
 {
 	signal(SIGINT, signal_callback_handler);
 
-	TraceReader reader = TraceReader(0x8);
+	TraceReader reader("/tmp/l4trace.out", 0x8);
 	uint64_t count = 0;
 
 	while (!aborted) {
@@ -26,12 +26,12 @@ int main()
 			continue;
 		}
 		else {
+		    reader.write_new_records();
 		    if (result.second)
                 std::cout << "Lost Events: " << result.second << std::endl;
             count += result.first;
             std::cout << std::dec << "\r count=" << count << std::flush;
 		}
-		//TODO: write to file
 	}
 
     //TODO: convert to ctf
