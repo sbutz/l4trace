@@ -2,8 +2,13 @@
 
 #include "fiasco/fiasco.h"
 #include <array>
-#include <leechcore.h>
 #include <map>
+
+/* Ignore some warnings from LeechCore */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wwrite-strings"
+#include <leechcore.h>
+#pragma GCC diagnostic pop
 
 class Device;
 

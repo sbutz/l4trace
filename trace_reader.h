@@ -2,9 +2,14 @@
 
 #include "fiasco/fiasco.h"
 #include "fiasco/ktrace_events.h"
-#include <leechcore.h>
 #include <vector>
 #include <fstream>
+
+/* Ignore some warnings from LeechCore */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wwrite-strings"
+#include <leechcore.h>
+#pragma GCC diagnostic pop
 
 class Device;
 class Kip;

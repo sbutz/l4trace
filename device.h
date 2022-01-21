@@ -1,8 +1,14 @@
 #pragma once
 
 #include "fiasco/fiasco.h"
-#include <leechcore.h>
 #include <string>
+
+/* Ignore some warnings from LeechCore */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wwrite-strings"
+#include <leechcore.h>
+#pragma GCC diagnostic pop
+
 
 const uint64_t pagesize = 4096;
 const uint64_t pagemask = ~(pagesize-1);
