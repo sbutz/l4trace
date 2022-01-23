@@ -30,9 +30,9 @@ int main()
 		    if (result.second)
                 std::cout << "Lost Events: " << result.second << std::endl;
             count += result.first;
-            std::cout << std::dec << "\r count=" << count << std::flush;
 		}
-	}
+        std::cout << std::dec << "\r count=" << count << std::flush;
+    }
 
     //TODO: convert to ctf
 
