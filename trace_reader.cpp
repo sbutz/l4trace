@@ -120,13 +120,14 @@ void TraceReader::write_new_records() {
 size_t TraceReader::update_buffer(Address start, Address end) {
     if (start < end) {
         /* align addresses */
-        start = start & pagemask;
-        end = end % pagesize == 0 ? end : (end & pagemask) + pagesize;
-        size_t size = end - start;
-        size_t idx = (start - this->tbuf_start) / sizeof(l4_tracebuffer_entry_t);
+        Address start_aligned = start & pagemask;
+        Address end_aligned = end % pagesize == 0 ? end : (end & pagemask) + pagesize;
+        size_t size = end_aligned - start_aligned;
+        size_t idx = (start_aligned - this->tbuf_start) / sizeof(l4_tracebuffer_entry_t);
 
-       this->dev->read_virt(start, size, &this->buffer[idx]);
-       return size / sizeof(l4_tracebuffer_entry_t);
+       this->dev->read_virt(start_aligned, size, &this->buffer[idx]);
+
+       return (end - start) / sizeof(l4_tracebuffer_entry_t);
     } else {
         return this->update_buffer(start, this->tbuf_end) +
             this->update_buffer(this->tbuf_start, end);
