@@ -43,6 +43,6 @@ private:
 	Address tbuf_end;
 	size_t tbuf_size;
 	Address last_read;
-    Address last_written;
-	uint64_t last_num;
+    uint64_t last_read_num;
+    Address last_write;
 };

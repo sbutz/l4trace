@@ -46,8 +46,8 @@ TraceReader::TraceReader(std::string path)
 	this->tbuf_end = status.window[1].tracebuffer + status.window[1].size;
 	this->tbuf_size = this->tbuf_end - this->tbuf_start;
 	this->last_read = this->tbuf_start;
-    this->last_written = this->last_read;
-	this->last_num = 0;
+    this->last_read_num = 0;
+    this->last_write = this->last_read;
 
 	/*
 	 * Initialize the internal buffer, the remote tracebuffer will be copied into.
@@ -77,7 +77,7 @@ TraceReader::~TraceReader()
 std::pair<size_t,size_t> TraceReader::get_new_records()
 {
     /* Need to call write_new_records() to not loose records */
-    assert(this->last_written == this->last_read);
+    assert(this->last_write == this->last_read);
 
     std::pair<size_t,size_t> result(0,0);
 	struct Tracebuffer_status status = this->get_status();
@@ -92,19 +92,19 @@ std::pair<size_t,size_t> TraceReader::get_new_records()
 
     /* Detect missed records */
     uint64_t next_num = this->buffer[address_to_idx(start)]._number;
-    if (next_num != this->last_num + 1)
-        result.second = next_num - this->last_num;
+    if (next_num != this->last_read_num + 1)
+        result.second = next_num - this->last_read_num;
 
     this->last_read = end;
-    this->last_num = this->buffer[address_to_idx(end) - 1]._number;
+    this->last_read_num = this->buffer[address_to_idx(end) - 1]._number;
 
     return result;
 }
 
 void TraceReader::write_new_records() {
-    assert(this->last_written < this->last_read);
+    assert(this->last_write < this->last_read);
 
-    size_t last_idx = address_to_idx(this->last_written);
+    size_t last_idx = address_to_idx(this->last_write);
     size_t current_idx = address_to_idx(this->last_read);
 
     this->file.write((const char *) &this->buffer[last_idx], (current_idx-last_idx) * sizeof(l4_tracebuffer_entry_t));
@@ -113,7 +113,7 @@ void TraceReader::write_new_records() {
     if (this->last_read == this->tbuf_end)
         this->last_read = this->tbuf_start;
 
-    this->last_written = this->last_read;
+    this->last_write = this->last_read;
 }
 
 size_t TraceReader::update_buffer(Address start, Address end) {
