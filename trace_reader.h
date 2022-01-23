@@ -39,7 +39,6 @@ private:
 	std::fstream file;
 
 	Address tbuf_start;
-	Address tbuf_start_phys;
 	Address tbuf_end;
 	size_t tbuf_size;
 	Address last_read;

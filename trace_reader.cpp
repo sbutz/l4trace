@@ -43,7 +43,6 @@ TraceReader::TraceReader(std::string path)
 	 */
 	struct Tracebuffer_status status = this->get_status();
 	this->tbuf_start = status.window[0].tracebuffer;
-	this->tbuf_start_phys = this->ptab->virt_to_phys(this->tbuf_start);
 	this->tbuf_end = status.window[1].tracebuffer + status.window[1].size;
 	this->tbuf_size = this->tbuf_end - this->tbuf_start;
 	this->last_read = status.current;
@@ -62,7 +61,6 @@ TraceReader::TraceReader(std::string path)
     this->file.open(path, std::ios::out | std::ios::binary);
 
 	std::cout << "tbuf_start: " << std::hex << tbuf_start << std::endl;
-	std::cout << "tbuf_start_phys: " << std::hex << tbuf_start_phys << std::endl;
 	std::cout << "tbuf_end: " << std::hex << tbuf_end << std::endl;
 	std::cout << "tbuf_size: " << tbuf_size << std::endl;
 	std::cout << "num: " << tbuf_size / sizeof(l4_tracebuffer_entry_t) << std::endl;
