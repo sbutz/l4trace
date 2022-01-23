@@ -31,6 +31,7 @@ private:
 	// update(start, end)
 	// get(element)
 	size_t update_buffer(Address start, Address end);
+	size_t address_to_idx(Address a) const;
 
 	Device *dev;
 	Pcileechinfo *pi;

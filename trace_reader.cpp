@@ -91,14 +91,12 @@ std::pair<size_t,size_t> TraceReader::get_new_records()
     result.first = this->update_buffer(start, end);
 
     /* Detect missed records */
-    size_t idx_begin = (start - this->tbuf_start) / sizeof(l4_tracebuffer_entry_t);
-    uint64_t next_num = this->buffer[idx_begin]._number;
+    uint64_t next_num = this->buffer[address_to_idx(start)]._number;
     if (next_num != this->last_num + 1)
         result.second = next_num - this->last_num;
 
     this->last_read = end;
-    size_t idx_end = (end - this->tbuf_start) / sizeof(l4_tracebuffer_entry_t) - 1;
-    this->last_num = this->buffer[idx_end]._number;
+    this->last_num = this->buffer[address_to_idx(end) - 1]._number;
 
     return result;
 }
@@ -106,10 +104,8 @@ std::pair<size_t,size_t> TraceReader::get_new_records()
 void TraceReader::write_new_records() {
     assert(this->last_written < this->last_read);
 
-    size_t last_idx = (this->last_written - this->tbuf_start) / sizeof(l4_tracebuffer_entry_t);
-    size_t current_idx = (this->last_read - this->tbuf_start) / sizeof(l4_tracebuffer_entry_t);
-    size_t max_idx = this->tbuf_size / sizeof(l4_tracebuffer_entry_t);
-    size_t min_idx = 0;
+    size_t last_idx = address_to_idx(this->last_written);
+    size_t current_idx = address_to_idx(this->last_read);
 
     this->file.write((const char *) &this->buffer[last_idx], (current_idx-last_idx) * sizeof(l4_tracebuffer_entry_t));
 
@@ -126,10 +122,9 @@ size_t TraceReader::update_buffer(Address start, Address end) {
     /* align addresses */
     Address start_aligned = start & pagemask;
     Address end_aligned = end % pagesize == 0 ? end : (end & pagemask) + pagesize;
-    size_t size = end_aligned - start_aligned;
-    size_t idx = (start_aligned - this->tbuf_start) / sizeof(l4_tracebuffer_entry_t);
+    size_t idx = address_to_idx(start_aligned);
 
-   this->dev->read_virt(start_aligned, size, &this->buffer[idx]);
+   this->dev->read_virt(start_aligned, end_aligned-start_aligned, &this->buffer[idx]);
    return (end - start) / sizeof(l4_tracebuffer_entry_t);
 }
 
@@ -144,4 +139,11 @@ struct Tracebuffer_status TraceReader::get_status()
 	);
 
 	return status;
+}
+
+size_t TraceReader::address_to_idx(Address a) const {
+    assert(a >= this->tbuf_start);
+    assert(a <= this->tbuf_end);
+
+    return (a - this->tbuf_start) / sizeof(l4_tracebuffer_entry_t);
 }
