@@ -45,8 +45,8 @@ TraceReader::TraceReader(std::string path)
 	this->tbuf_start = status.window[0].tracebuffer;
 	this->tbuf_end = status.window[1].tracebuffer + status.window[1].size;
 	this->tbuf_size = this->tbuf_end - this->tbuf_start;
-	this->last_read = status.current;
-    this->last_written = status.current;
+	this->last_read = this->tbuf_start;
+    this->last_written = this->last_read;
 	this->last_num = 0;
 
 	/*
