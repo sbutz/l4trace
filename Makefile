@@ -5,7 +5,9 @@ LDLIBS = -l:leechcore.so -ldl -lstdc++
 SRCS = main.cpp trace_reader.cpp page_table.cpp device.cpp
 OBJS = $(SRCS:.cpp=.o)
 
-all: leechcore l4trace run
+#TODO: dependency on header file
+
+all: l4trace run
 
 l4trace: $(OBJS)
 	g++ $(LDFLAGS) $(OBJS) $(LDLIBS) -o $@
