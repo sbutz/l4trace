@@ -1,10 +1,14 @@
 # l4trace
 
 Extract the fiasco trace buffer running on a target machine using a
-PCIe screamer device. \
-To locate the tracebuffer, fiasco requires an additional JDB module.
+PCIe screamer device.
 
-REFERENCE PATCH
+## Patching Fiasco
+The screamer access the tracebuffer memory via Busmastering DMA.
+You need to enable `CONFIG_IOMMU_PASSTHROUGH=y`. \
+To enable Busmastering DMA and place the tracebuffer address at
+a well-known location, apply the provided patch
+in `./fiasco.patch`.
 
 ## Building
 Clone submodules

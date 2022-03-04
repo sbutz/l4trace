@@ -1,4 +1,5 @@
 #include "device.h"
+#include "fiasco/jdb_ktrace.h"
 #include "fiasco/kip.h"
 #include "fiasco/pcileechinfo.h"
 #include "page_table.h"
@@ -26,8 +27,11 @@ TraceReader::TraceReader(std::string path)
 	 */
 	if (!this->dev->kip->_res5[0])
 		errx(1, "no Pcileechinfo found");
+	printf("leech info %p\n", this->dev->kip->_res5[0]);
 	this->pi = new Pcileechinfo();
 	this->dev->read(this->dev->kip->_res5[0], sizeof(*this->pi), this->pi);
+	printf("status %p\n", pi->Tbuf_status_page);
+	printf("kdir %p\n", pi->kdir);
 
 	/*
 	 * Validate read info struct and setup address resolution.

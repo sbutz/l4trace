@@ -1,0 +1,218 @@
+From fbb67c33af68cc5724ce757a89ab82bc45ac51ee Mon Sep 17 00:00:00 2001
+From: Stefan Butz <sbutz@genua.de>
+Date: Fri, 4 Mar 2022 21:44:17 +0100
+Subject: [PATCH] l4trace
+
+- Why is the change necessary?
+The screamer needs to access the memory via dma.
+The screamer needs to know the tbuf location.
+Tbuf scanning must be performant.
+
+- How does it address the issue?
+Enable IOMMU Passthrough and set Busmastering bits.
+Ignore screamer in io.
+Place a pointer in KIP as the KIP is well known address.
+Increased tbuf size improves performance.
+
+- Known side effects?
+
+Change-Id: I4a55c652417a7bf0493c4eecdce0bd083a70e52a
+---
+ src/kernel/fiasco/src/Modules.amd64           |  3 +-
+ .../fiasco/src/jdb/jdb_scream-amd64.cpp       | 98 +++++++++++++++++++
+ src/kernel/fiasco/src/jdb/jdb_tbuf_init.cpp   |  4 +-
+ src/kernel/fiasco/src/kern/config.cpp         |  2 +-
+ .../globalconfig.out.amd64-vs-top-debug       |  7 +-
+ src/l4/pkg/io/io/server/src/pci/pci.cc        |  1 +
+ 6 files changed, 106 insertions(+), 9 deletions(-)
+ create mode 100644 src/kernel/fiasco/src/jdb/jdb_scream-amd64.cpp
+
+diff --git a/src/kernel/fiasco/src/Modules.amd64 b/src/kernel/fiasco/src/Modules.amd64
+index 3b4c84b448..8c7de5bbcc 100644
+--- a/src/kernel/fiasco/src/Modules.amd64
++++ b/src/kernel/fiasco/src/Modules.amd64
+@@ -176,7 +176,7 @@ VPATH			+= jdb/ia32/64 jdb/ia32 jdb
+ INTERFACES_JDB		+= jdb_io_ports jdb_ptab jdb_trace_set            \
+ 			   loadcnt jdb_io_apic jdb_ipi \
+ 			   jdb_bt jdb_log jdb_iomap jdb_misc              \
+-			   jdb_halt_thread
++			   jdb_halt_thread jdb_scream
+ 
+ ifeq ("$(CONFIG_EXTRACON)","y")
+ INTERFACES_JDB         += jdb_econsole
+@@ -201,6 +201,7 @@ jdb_ptab_IMPL		:= jdb_ptab jdb_ptab-amd64
+ jdb_screen_IMPL		:= jdb_screen jdb_screen-ia32
+ jdb_tcb_IMPL		+= jdb_tcb-amd64
+ jdb_trace_set_IMPL	:= jdb_trace_set jdb_trace_set-ia32-ux
++jdb_scream_IMPL		:= jdb_scream-amd64
+ 
+ INTERFACES_JDB-$(CONFIG_JDB_MISC)	+= jdb_tetris
+ 
+diff --git a/src/kernel/fiasco/src/jdb/jdb_scream-amd64.cpp b/src/kernel/fiasco/src/jdb/jdb_scream-amd64.cpp
+new file mode 100644
+index 0000000000..0cace50a38
+--- /dev/null
++++ b/src/kernel/fiasco/src/jdb/jdb_scream-amd64.cpp
+@@ -0,0 +1,98 @@
++IMPLEMENTATION[amd64]:
++
++#include <cstdio>
++
++#include "cpu.h"
++#include "jdb.h"
++#include "jdb_module.h"
++#include "kmem.h"
++#include "pci.h"
++
++class Jdb_scream : public Jdb_module
++{
++public:
++  Jdb_scream() FIASCO_INIT;
++
++  struct Pcileechinfo
++  {
++    Mword Tbuf_status_page;
++    Mword kdir;
++  };
++
++private:
++  static struct Pcileechinfo _pcileechinfo;
++  static const Unsigned32 _pci_ids_thblt[];
++};
++
++struct Jdb_scream::Pcileechinfo Jdb_scream::_pcileechinfo;
++
++/* PCI device ids of the m2.screamer and the thunderbolt bridges */
++const Unsigned32 Jdb_scream::_pci_ids_thblt[] = {
++	0x066610ee,
++	0x15c08086,
++	0x15e78086,
++	0x15e88086,
++	0x15e98086,
++	0
++};
++
++
++PUBLIC
++Jdb_module::Action_code
++Jdb_scream::action(int cmd, void *&, char const *&, int &) override
++{
++  if (cmd)
++    return NOTHING;
++
++  /* Enable Busmastering for Screamer. */
++  for (unsigned bus = 0; bus < 64; ++bus)
++    for (unsigned dev = 0; dev < 32; ++dev)
++      for (unsigned fn = 0; fn < 8; ++fn)
++        {
++          Pci::Cfg_addr pci_addr(bus, dev, fn);
++          Unsigned32 id = Pci::read_cfg(pci_addr + 0, Pci::Cfg_width::Long);
++          for (const Unsigned32 *pci_id = _pci_ids_thblt; *pci_id; ++pci_id)
++            {
++              if (id != *pci_id)
++                continue;
++	      Unsigned32 cmd = Pci::read_cfg(pci_addr + 4, Pci::Cfg_width::Short);
++	      printf("Enable busmaster %8x %x:%x.%x cmd %x\n", id, bus, dev, fn, cmd);
++	      cmd |= (1UL << 2);
++	      Pci::write_cfg(pci_addr + 4, cmd);
++            }
++        }
++
++  /* Place Pcileechinfo, so that screamer can find the tracebuffer. */
++  auto pi = &_pcileechinfo;
++  pi->Tbuf_status_page    = Mem_layout::Tbuf_status_page;
++  pi->kdir                = Cpu::get_pdbr();
++  Kip::k()->_res5[0] = Kmem::virt_to_phys(pi);
++
++  return NOTHING;
++}
++
++PUBLIC
++int
++Jdb_scream::num_cmds() const override
++{
++  return 1;
++}
++
++PUBLIC
++Jdb_module::Cmd const *
++Jdb_scream::cmds() const
++{
++  static Cmd cs[] =
++    {
++      { 0, "G", "scream", "", "Activate M2.Screamer", 0 }
++    };
++  return cs;
++}
++
++IMPLEMENT
++Jdb_scream::Jdb_scream()
++  : Jdb_module("MONITORING")
++{
++}
++
++static Jdb_scream jdb_scream INIT_PRIORITY(JDB_MODULE_INIT_PRIO);
+diff --git a/src/kernel/fiasco/src/jdb/jdb_tbuf_init.cpp b/src/kernel/fiasco/src/jdb/jdb_tbuf_init.cpp
+index 854d418ec3..db20860a5b 100644
+--- a/src/kernel/fiasco/src/jdb/jdb_tbuf_init.cpp
++++ b/src/kernel/fiasco/src/jdb/jdb_tbuf_init.cpp
+@@ -67,10 +67,10 @@ void Jdb_tbuf_init::init()
+       if (Koptions::o()->opt(Koptions::F_tbuf_entries))
+         want_entries = Koptions::o()->tbuf_entries;
+ 
+-      // minimum: 8KB (  2 pages), maximum: 2MB (512 pages)
++      // minimum: 8KB (  2 pages), maximum: 64MB (4000 pages)
+       // must be a power of 2 (for performance reasons)
+       for (n = Config::PAGE_SIZE / sizeof(Tb_entry_union);
+-           n < want_entries && n * sizeof(Tb_entry_union) < 0x200000;
++           n < want_entries && n * sizeof(Tb_entry_union) < 0x4000000;
+            n <<= 1)
+         ;
+ 
+diff --git a/src/kernel/fiasco/src/kern/config.cpp b/src/kernel/fiasco/src/kern/config.cpp
+index 23248bd77e..a5f68bcaf4 100644
+--- a/src/kernel/fiasco/src/kern/config.cpp
++++ b/src/kernel/fiasco/src/kern/config.cpp
+@@ -244,7 +244,7 @@ bool Config::esc_hack = false;
+ int  Config::serial_esc = Config::SERIAL_NO_ESC;
+ #endif
+ 
+-unsigned Config::tbuf_entries = 0x20000 / sizeof(Mword); //1024;
++unsigned Config::tbuf_entries = 0x80000 / sizeof(Mword); //32768;
+ bool Config::getchar_does_hlt_works_ok = false;
+ unsigned Config::num_ap_cpus;
+ 
+diff --git a/src/kernel/fiasco/src/templates/globalconfig.out.amd64-vs-top-debug b/src/kernel/fiasco/src/templates/globalconfig.out.amd64-vs-top-debug
+index 88310102ab..bfdb97a2e9 100644
+--- a/src/kernel/fiasco/src/templates/globalconfig.out.amd64-vs-top-debug
++++ b/src/kernel/fiasco/src/templates/globalconfig.out.amd64-vs-top-debug
+@@ -33,12 +33,9 @@ CONFIG_FPU=y
+ #
+ CONFIG_MP=y
+ # CONFIG_IOMMU_REQUIRED is not set
+-# CONFIG_IOMMU_PASSTHROUGH is not set
+-CONFIG_IOMMU_RMRR=y
++CONFIG_IOMMU_PASSTHROUGH=y
++# CONFIG_IOMMU_RMRR is not set
+ # CONFIG_IOMMU_NOPT is not set
+-# CONFIG_IOMMU_RMRR_STRICT is not set
+-CONFIG_IOMMU_RMRR_QUIRK_ALIGN_4M=y
+-# CONFIG_IOMMU_RMRR_QUIRK_IDENTITY_MAP is not set
+ CONFIG_EXTRACON=y
+ CONFIG_MP_MAX_CPUS=8
+ CONFIG_CONTEXT_8K=y
+diff --git a/src/l4/pkg/io/io/server/src/pci/pci.cc b/src/l4/pkg/io/io/server/src/pci/pci.cc
+index 9e02a99e22..304a1825f0 100644
+--- a/src/l4/pkg/io/io/server/src/pci/pci.cc
++++ b/src/l4/pkg/io/io/server/src/pci/pci.cc
+@@ -188,6 +188,7 @@ static l4_uint32_t pci_dev_blacklist[] = {
+   0x9de38086,   /* Connon point AMT serial over LAN device (0:16.c). */
+   0x02e08086,   /* Comet Lake MEI device (0:16.0). */
+   0x02e38086,   /* Comet Lake AMT serial over LAN device (0:16.c). */
++  0x066610ee,   /* Xilinx device, pcileech Screamer.M2 */
+   0,
+ };
+ 
+-- 
+2.20.1
+
