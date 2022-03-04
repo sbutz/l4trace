@@ -1,24 +1,38 @@
 # l4trace
 
 Extract the fiasco trace buffer running on a target machine using a
-fpga screamer device.
+PCIe screamer device. \
+To locate the tracebuffer, fiasco requires an additional JDB module.
 
-highly vs-top specific (fiasco version, amd64, genua tweaks)
-
+REFERENCE PATCH
 
 ## Building
-Clone Repo.
-```shell
-git clone --recurse-submodules git@github.com:sbutz/l4trace.git
+Clone submodules
 ```
-Install libusb and pkg-config to build LeechCore.
+git submodule update --init --recursive
 ```
-apt-get install libusb-1.0-0-dev pkg-config
-```
-Babeltrace requirements
-see babeltrace build instructions
 
-- put so files in /usr/lib OR LD_LIBRARY_PATH to GIT_ROOT/lib
+Install libusb and build LeechCore
+```
+sudo apt install libusb-1.0-0-dev 
+make leechcore
+```
+
+Optional: Add udev rules to use device as group member of `dialout`
+```
+sudo cp udev.rules /etc/udev/rules.d/99-screamerM2.rules
+sudo udevadm control --reload-rules
+```
+
+Build and run l4trace
+```
+make run
+```
+*Hint: To run `l4trace` as a standalone binary, you need to add
+the content of `./lib/` to your `LD_LIBRARY_PATH`.
+E.g. copy libraries to `/usr/lib/`.*
+
+see babeltrace build instructions
 
 ## Problems
 - where is tracebuffer -> pcileechinfo in kip
