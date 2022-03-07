@@ -4,10 +4,11 @@
 
 #define BUF_SIZE 1025
 
-int main()
+int main(int argc, char *argv[])
 {
     //FILE *file = fopen("/tmp/l4trace.out", "r");
-    FILE *file = fopen("/tmp/l4trace_sorted.out", "r");
+    //FILE *file = fopen("/tmp/l4trace_sorted.out", "r");
+    FILE *file = fopen(argv[1], "r");
 
     l4_tracebuffer_entry_t buf[BUF_SIZE];
     l4_tracebuffer_entry_t last;
