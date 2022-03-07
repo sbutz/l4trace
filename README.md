@@ -16,10 +16,16 @@ Clone submodules
 git submodule update --init --recursive
 ```
 
-Install libusb and build LeechCore
+Install dependencies and build LeechCore
 ```
 sudo apt install libusb-1.0-0-dev 
 make leechcore
+```
+
+Install dependencies and build babeltrace
+```
+sudo apt install automake autoconf libtool flex bison asciidoc xmlto
+make babeltrace
 ```
 
 Optional: Add udev rules to use device as group member of `dialout`
