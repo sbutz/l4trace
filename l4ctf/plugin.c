@@ -1,10 +1,11 @@
 #include "../fiasco/ktrace_events.h"
+#include <assert.h>
 #include <babeltrace2/babeltrace.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 
-#define BUF_SIZE 1
+#define BUF_SIZE 15
 
 /*
  * TODO: check function return values
@@ -14,6 +15,12 @@
 struct l4trace_in {
     /* Input file path */
     const bt_value *path_value;
+
+    /* Input file */
+    FILE *file;
+
+    /* Number of cpu's and streams */
+    uint8_t n_cpu;
 
     /* Stream and event classes */
     bt_event_class *event_class;
@@ -25,13 +32,32 @@ struct l4trace_in_message_iterator {
     /* link to component's private data */
     struct l4trace_in *l4trace_in;
 
-    //TODO: just for testing
-    //TODO: remove
-    uint64_t i;
-
-    FILE *file;
     l4_tracebuffer_entry_t buffer[BUF_SIZE];
 };
+
+static
+void determine_number_of_cpus(struct l4trace_in *l4trace_in) {
+    /* file should be opened */
+    assert(l4trace_in->file != NULL);
+    l4_tracebuffer_entry_t buf[BUF_SIZE];
+    int n_cpu = 0;
+    for (;;) {
+        int n_read = fread(&buf, sizeof(l4_tracebuffer_entry_t), BUF_SIZE, l4trace_in->file);
+    
+        if (n_read == EOF || feof(l4trace_in->file)) {
+            break;
+        }
+
+        for (int i = 0; i < n_read; i++) {
+            n_cpu = buf[i]._cpu > n_cpu ? buf[i]._cpu : n_cpu;
+        }
+    }
+    /* cpu numbering starts with zero */
+    l4trace_in->n_cpu = n_cpu + 1;
+
+    /* rewind file */
+    rewind(l4trace_in->file);
+}
 
 static
 void create_metadata_and_stream(bt_self_component *self_component,
@@ -96,6 +122,19 @@ bt_component_class_initialize_method_status l4trace_in_initialize(
 
     l4trace_in->path_value =
         bt_value_map_borrow_entry_value_const(params, "path");
+    bt_value_get_ref(l4trace_in->path_value);
+ 
+
+    /* save file handle */
+    l4trace_in->file = fopen(
+        bt_value_string_get(l4trace_in->path_value), "r");
+    if (!l4trace_in->file) {
+        free(l4trace_in);
+        return BT_COMPONENT_CLASS_INITIALIZE_METHOD_STATUS_ERROR;
+    }
+
+    /* determine number of cpus */
+    determine_number_of_cpus(l4trace_in);
 
     /* casting */
     bt_self_component *self_component =
@@ -126,6 +165,10 @@ void l4trace_in_finalize(bt_self_component_source *self_component_source)
     struct l4trace_in *l4trace_in = bt_self_component_get_data(
         bt_self_component_source_as_self_component(self_component_source));
 
+    /* Free file path and file */
+    bt_value_put_ref(l4trace_in->path_value);
+    fclose(l4trace_in->file);
+
     /* Free refrences */
     bt_event_class_put_ref(l4trace_in->event_class);
     bt_stream_put_ref(l4trace_in->stream);
@@ -152,15 +195,6 @@ l4trace_in_message_iterator_initialize(
     private->l4trace_in = bt_self_component_get_data(
             bt_self_message_iterator_borrow_component(self_message_iterator));
 
-    /* save file handle */
-    private->file = fopen(
-        bt_value_string_get(private->l4trace_in->path_value), "r");
-
-    if (!private->file) {
-        free(private);
-        return BT_MESSAGE_ITERATOR_CLASS_INITIALIZE_METHOD_STATUS_ERROR;
-    }
-
     bt_self_message_iterator_set_data(self_message_iterator, private);
     return BT_MESSAGE_ITERATOR_CLASS_INITIALIZE_METHOD_STATUS_OK;
 }
@@ -173,7 +207,6 @@ void l4trace_in_message_iterator_finalize(
     struct l4trace_in_message_iterator *private =
             bt_self_message_iterator_get_data(self_message_iterator);
 
-    fclose(private->file);
     free(private);
 }
 
@@ -188,8 +221,8 @@ bt_message_iterator_class_next_method_status l4trace_in_message_iterator_next(
         bt_self_message_iterator_get_data(self_message_iterator);
 
     int n_read = fread(private->buffer, sizeof(l4_tracebuffer_entry_t),
-                        BUF_SIZE, private->file);
-    if (n_read == EOF || feof(private->file)) {
+                        BUF_SIZE, private->l4trace_in->file);
+    if (n_read == EOF || feof(private->l4trace_in->file)) {
         //TODO: create end of stream message
         //message = bt_message_stream_end_create(self_message_iterator, stream?);
         return BT_MESSAGE_ITERATOR_CLASS_NEXT_METHOD_STATUS_END;
