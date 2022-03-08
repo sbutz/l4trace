@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define BUF_SIZE 15
+#define BUF_SIZE 1
 
 /*
  * TODO: check function return values
@@ -24,7 +24,9 @@ struct l4trace_in {
 
     /* Stream and event classes */
     bt_event_class *event_class;
-    bt_stream *stream;
+    //TODO: use bt_value_array
+    //bt_value *streams;
+    bt_stream **streams;
 };
 
 /* message iterator's private data */
@@ -66,8 +68,11 @@ void create_metadata_and_stream(bt_self_component *self_component,
     /* Create trace */
     bt_trace_class *trace_class = bt_trace_class_create(self_component);
 
-    /* Create stream within the trace */
+    /* Create stream class within the trace */
     bt_stream_class *stream_class = bt_stream_class_create(trace_class);
+
+    /* Disable automatic stream id */
+    bt_stream_class_set_assigns_automatic_stream_id(stream_class, BT_FALSE);
 
     /* Create clock for the stream */
     bt_clock_class *clock_class = bt_clock_class_create(self_component);
@@ -94,9 +99,16 @@ void create_metadata_and_stream(bt_self_component *self_component,
     l4trace_in->event_class = event_class;
 
 
-    /* Create the component's stream */
+    /* Create the trace */
     bt_trace *trace = bt_trace_create(trace_class);
-    l4trace_in->stream = bt_stream_create(stream_class, trace);
+    /* Create on stream per cpu in the trace */
+    l4trace_in->streams = malloc(l4trace_in->n_cpu * sizeof(bt_stream *));
+    //TODO: check return value
+    //if (!l4trace_in->streams)
+    //    return
+    for (int i = 0; i < l4trace_in->n_cpu; i++) {
+        l4trace_in->streams[i] = bt_stream_create_with_id(stream_class, trace, i);
+    }
 
     /* Free unneeded references */
     bt_field_class_put_ref(payload_field_class);
@@ -171,7 +183,8 @@ void l4trace_in_finalize(bt_self_component_source *self_component_source)
 
     /* Free refrences */
     bt_event_class_put_ref(l4trace_in->event_class);
-    bt_stream_put_ref(l4trace_in->stream);
+    //TODO: free streams
+    //bt_stream_put_ref(l4trace_in->stream);
 
     free(l4trace_in);
 }
@@ -238,21 +251,20 @@ bt_message_iterator_class_next_method_status l4trace_in_message_iterator_next(
     *count = 0;
     int i;
     for (i = 0; i < BUF_SIZE; i++) {
+        l4_tracebuffer_entry_t *e = &private->buffer[i];
         bt_message *message = bt_message_event_create_with_default_clock_snapshot(
                 self_message_iterator,
                 private->l4trace_in->event_class,
-                private->l4trace_in->stream,
+                private->l4trace_in->streams[e->_cpu],
                 private->buffer[i]._kclock);
         bt_event *event = bt_message_event_borrow_event(message);
         bt_field *payload_field = bt_event_borrow_payload_field(event);
         bt_field *number_field = bt_field_structure_borrow_member_field_by_name(
                 payload_field, "number");
-        bt_field_integer_unsigned_set_value(number_field,
-                                            private->buffer[i]._number);
+        bt_field_integer_unsigned_set_value(number_field, e->_number);
         bt_field *tsc_field = bt_field_structure_borrow_member_field_by_name(
                 payload_field, "tsc");
-        bt_field_integer_unsigned_set_value(tsc_field,
-                                            private->buffer[i]._kclock);
+        bt_field_integer_unsigned_set_value(tsc_field, e->_kclock);
         messages[i] = message;
     }
     *count = i;
