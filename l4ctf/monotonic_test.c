@@ -22,12 +22,11 @@ int main(int argc, char *argv[])
             gc++;
             if (last._kclock > buf[i]._kclock || (last._kclock == buf[i]._kclock && last._number > buf[i]._number)) {
                 gm++;
-                printf("[%d]: kclock=%u (cpu=%hhu,tsc=%llu,type=%hhu,number=%lx) klock=%u (cpu=%hhu,tsc=%llu,type=%hhu,number=%lx) diff=%lx (%lx %lx)\n",
+                printf("[%d]: kclock=%u (cpu=%hhu,tsc=%llu,type=%hhu,number=%lx) klock=%u (cpu=%hhu,tsc=%llu,type=%hhu,number=%lx) diff=%lx\n",
                        i,
                        last._kclock, last._cpu, last._tsc, last._type, last._number,
                        buf[i]._kclock, buf[i]._cpu, buf[i]._tsc, buf[i]._type, buf[i]._number,
-                       last._number - buf[i]._number,
-                       buf[i-2]._number, buf[i+1]._number);
+                       last._number - buf[i]._number);
             }
             last = buf[i];
         }
