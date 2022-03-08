@@ -12,6 +12,10 @@
 
 /* component's private data */
 struct l4trace_in {
+    /* Input file path */
+    const bt_value *path_value;
+
+    /* Stream and event classes */
     bt_event_class *event_class;
     bt_stream *stream;
 };
@@ -90,16 +94,15 @@ bt_component_class_initialize_method_status l4trace_in_initialize(
     if (!l4trace_in)
         return BT_COMPONENT_CLASS_INITIALIZE_METHOD_STATUS_MEMORY_ERROR;
 
+    l4trace_in->path_value =
+        bt_value_map_borrow_entry_value_const(params, "path");
+
     /* casting */
     bt_self_component *self_component =
             bt_self_component_source_as_self_component(self_component_source);
 
     /* Create metadata, stream and event classes */
     create_metadata_and_stream(self_component, l4trace_in);
-
-    printf("packet-support: %x\n", bt_stream_class_supports_packets(bt_stream_borrow_class_const(l4trace_in->stream)) == BT_FALSE);
-
-    printf("clock: %x\n", bt_stream_class_borrow_default_clock_class_const(bt_stream_borrow_class_const(l4trace_in->stream)));
 
     /* Save component's private data */
     bt_self_component_set_data(self_component, l4trace_in);
@@ -149,11 +152,10 @@ l4trace_in_message_iterator_initialize(
     private->l4trace_in = bt_self_component_get_data(
             bt_self_message_iterator_borrow_component(self_message_iterator));
 
-    //TODO: remove
-    private->i = 0;
-
     /* save file handle */
-    private->file = fopen("/tmp/l4trace_sorted.out", "r");
+    private->file = fopen(
+        bt_value_string_get(private->l4trace_in->path_value), "r");
+
     if (!private->file) {
         free(private);
         return BT_MESSAGE_ITERATOR_CLASS_INITIALIZE_METHOD_STATUS_ERROR;
