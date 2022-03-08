@@ -10,7 +10,7 @@ run: plugin.so
 	babeltrace2 \
 		--plugin-path=. \
 		--component=source.l4trace.input \
-		--params='path="/home/sbutz/git/l4trace/l4trace.out.10"'
+		--params='path="/home/sbutz/git/l4trace/l4trace.out.10"' \
 		--component=sink.ctf.fs \
 		--params='path="/tmp/l4trace.ctf"'
 
