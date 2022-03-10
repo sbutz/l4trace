@@ -3,14 +3,24 @@
 Extract the fiasco trace buffer running on a target machine using a
 PCIe screamer device.
 
+## Equipment
+- [M.2 Screamer](https://shop.lambdaconcept.com/home/43-screamer-m2.html)
+- [Thunderbold Adapter](https://eshop.macsales.com/shop/envoy-express/thunderbolt-3)
+
 ## Patching Fiasco
 The screamer access the tracebuffer memory via Busmastering DMA.
-You need to enable `CONFIG_IOMMU_PASSTHROUGH=y`. \
-To enable Busmastering DMA and place the tracebuffer address at
-a well-known location, apply the provided patch
-in `./fiasco.patch`.
+You need to set:
+```
+CONFIG_IOMMU_PASSTHROUGH=y
+CONFIG JDB=y
+CONFIG JDB LOGGING=y
+```
 
-## Building
+To enable Busmastering DMA and place the tracebuffer address at
+a well-known location, add the provided module (`./fiasco/jdb_scream.cpp`)
+to your kernel.
+
+## Building l4trace
 Clone submodules
 ```
 git submodule update --init --recursive
