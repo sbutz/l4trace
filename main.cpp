@@ -1,4 +1,3 @@
-#include "external_sort.h"
 #include "trace_reader.h"
 #include <iostream>
 #include <csignal>
@@ -44,12 +43,5 @@ int main()
         std::cout << std::dec << "\r count=" << count << std::flush;
     }
 
-	ExternalSort<l4_tracebuffer_entry_t>::sort("/tmp/l4trace.out",
-                                               "/tmp/l4trace_sorted.out",
-                                               compareRecords,
-                                               ExternalSort<l4_tracebuffer_entry_t>::MB * 100);
-    //TODO: convert to ctf
-
 	return 0;
 }
-
