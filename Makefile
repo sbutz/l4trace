@@ -5,14 +5,10 @@ LDLIBS = -l:leechcore.so -ldl -lstdc++
 SRCS = main.cpp trace_reader.cpp page_table.cpp device.cpp
 OBJS = $(SRCS:.cpp=.o)
 
-all: l4trace run
+all: leechcore l4trace l4ctf
 
 l4trace: $(OBJS)
 	g++ $(LDFLAGS) $(OBJS) $(LDLIBS) -o $@
-
-.PHONY: run
-run: l4trace
-	LD_LIBRARY_PATH=./lib ./l4trace
 
 .PHONY: leechcore
 leechcore:
@@ -21,6 +17,10 @@ leechcore:
 	mkdir -p lib
 	cp LeechCore/files/leechcore.so lib/
 	cp LeechCore-plugins/files/leechcore_ft601_driver_linux.so lib/
+
+.PHONY: l4ctf
+l4ctf:
+	$(MAKE) -C l4ctf
 
 clean:
 	rm -rf lib/ l4trace *.o

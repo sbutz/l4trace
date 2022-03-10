@@ -76,7 +76,7 @@ void create_metadata_and_stream(bt_self_component *self_component,
 
     /* Create clock for the stream */
     bt_clock_class *clock_class = bt_clock_class_create(self_component);
-    //bt_clock_class_set_frequency(clock_class, 1000000);
+    bt_clock_class_set_frequency(clock_class, 1000000);
     bt_stream_class_set_default_clock_class(stream_class, clock_class);
 
     /* Create event classes within the stream */

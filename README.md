@@ -28,12 +28,12 @@ git submodule update --init --recursive
 
 Install dependencies
 ```
-sudo apt install libusb-1.0-0-dev babeltrace
+sudo apt install libusb-1.0-0-dev babeltrace2 libbabeltrace2-dev
 ```
 
 Build LeechCore
 ```
-make leechcore
+make all
 ```
 
 Optional: [Build Babeltrace for development](https://babeltrace.org/docs/v2.0/libbabeltrace2/guide-build-bt2-dev.html)
@@ -45,7 +45,7 @@ sudo cp udev.rules /etc/udev/rules.d/99-screamerM2.rules
 sudo udevadm control --reload-rules
 ```
 
-Build and run l4trace
+## Run
 ```
-make run
+./l4trace.sh
 ```
