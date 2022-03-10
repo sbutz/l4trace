@@ -17,7 +17,7 @@ CONFIG JDB LOGGING=y
 ```
 
 To enable Busmastering DMA and place the tracebuffer address at
-a well-known location, add the provided module (`./fiasco/jdb_scream.cpp`)
+a well-known location, add the provided module (`./jdb_scream.cpp`)
 to your kernel.
 
 ## Building l4trace
