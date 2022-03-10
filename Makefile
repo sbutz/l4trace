@@ -5,8 +5,6 @@ LDLIBS = -l:leechcore.so -ldl -lstdc++
 SRCS = main.cpp trace_reader.cpp page_table.cpp device.cpp
 OBJS = $(SRCS:.cpp=.o)
 
-#TODO: dependency on header file
-
 all: l4trace run
 
 l4trace: $(OBJS)
@@ -23,13 +21,6 @@ leechcore:
 	mkdir -p lib
 	cp LeechCore/files/leechcore.so lib/
 	cp LeechCore-plugins/files/leechcore_ft601_driver_linux.so lib/
-
-.PHONY: babeltrace
-babeltrace:
-	cd babeltrace && ./configure
-	cd babeltrace && BABELTRACE_DEV_MODE=1 BABELTRACE_MINIMAL_LOG_LEVEL=TRACE ./configure
-	$(MAKE) -C babeltrace
-	sudo $(MAKE) -C babeltrace install
 
 clean:
 	rm -rf lib/ l4trace *.o

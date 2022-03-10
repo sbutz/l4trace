@@ -4,6 +4,3 @@
 [submodule "LeechCore-plugins"]
 	path = LeechCore-plugins
 	url = git@github.com:ufrisk/LeechCore-plugins.git
-[submodule "babeltrace"]
-	path = babeltrace
-	url = git@github.com:efficios/babeltrace.git

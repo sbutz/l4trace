@@ -16,17 +16,18 @@ Clone submodules
 git submodule update --init --recursive
 ```
 
-Install dependencies and build LeechCore
+Install dependencies
 ```
-sudo apt install libusb-1.0-0-dev 
+sudo apt install libusb-1.0-0-dev babeltrace
+```
+
+Build LeechCore
+```
 make leechcore
 ```
 
-Install dependencies and build babeltrace
-```
-sudo apt install automake autoconf libtool flex bison asciidoc xmlto
-make babeltrace
-```
+Optional: [Build Babeltrace for development](https://babeltrace.org/docs/v2.0/libbabeltrace2/guide-build-bt2-dev.html)
+
 
 Optional: Add udev rules to use device as group member of `dialout`
 ```
@@ -38,20 +39,3 @@ Build and run l4trace
 ```
 make run
 ```
-*Hint: To run `l4trace` as a standalone binary, you need to add
-the content of `./lib/` to your `LD_LIBRARY_PATH`.
-E.g. copy libraries to `/usr/lib/`.*
-
-see babeltrace build instructions
-
-## Problems
-- where is tracebuffer -> pcileechinfo in kip
-- virt_to_phys -> pdir aus kip, traverse pdir structure
-- reading way to slow
-	- cache/reduce/calc virt_to_phys
-	- read multiple
-	- reduce allocations
-	- improve buf size
-- records not ordered
-	- cause unclear
-	-> fix: sort
