@@ -14,6 +14,9 @@ class Device;
 
 typedef std::array<Address, 512> page_dir_t;
 
+/*
+ * Virtual address resolution.
+ */
 class PageTable
 {
 public:

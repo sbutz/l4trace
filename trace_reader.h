@@ -26,10 +26,6 @@ public:
 
 private:
 	struct Tracebuffer_status get_status();
-	//TODO: create class MappedBuffer<>(dev, start, size)
-	// update()
-	// update(start, end)
-	// get(element)
 	size_t update_buffer(Address start, Address end);
 	size_t address_to_idx(Address a) const;
 

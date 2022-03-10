@@ -16,6 +16,12 @@ const uint64_t pagemask = ~(pagesize-1);
 class PageTable;
 class Kip;
 
+/*
+ * Wrapper around the required leechore functions.
+ * 
+ * Can read virtual memory if a PageTable object is
+ * added via add_page_table().
+ */
 class Device
 {
 public:

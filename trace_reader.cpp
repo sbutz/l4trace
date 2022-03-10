@@ -16,7 +16,7 @@ TraceReader::TraceReader(std::string path)
 	 * Algorithm:
 	 * 0,1  windows only
 	 * 2 	old normal read
-	 * 3 	old tiny read       <- best
+	 * 3 	old tiny read
 	 *
 	 * Loglevel: heavy performance penalty if greater zero
 	 */
@@ -64,10 +64,10 @@ TraceReader::TraceReader(std::string path)
      */
     this->file.open(path, std::ios::out | std::ios::binary);
 
-	std::cout << "tbuf_start: " << std::hex << tbuf_start << std::endl;
-	std::cout << "tbuf_end: " << std::hex << tbuf_end << std::endl;
-	std::cout << "tbuf_size: " << tbuf_size << std::endl;
-	std::cout << "num: " << tbuf_size / sizeof(l4_tracebuffer_entry_t) << std::endl;
+	//std::cout << "tbuf_start: " << std::hex << tbuf_start << std::endl;
+	//std::cout << "tbuf_end: " << std::hex << tbuf_end << std::endl;
+	//std::cout << "tbuf_size: " << tbuf_size << std::endl;
+	//std::cout << "num: " << tbuf_size / sizeof(l4_tracebuffer_entry_t) << std::endl;
 }
 
 TraceReader::~TraceReader()

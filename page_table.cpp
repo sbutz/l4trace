@@ -11,8 +11,6 @@ PageTable::PageTable(Device *dev, Address cr3)
 {
 }
 
-//TODO: FRAGE: daten die ueber mehrere pages gehen, wie lesen?
-//TODO: save cr4 to know the usable bits
 /*
  * Get physical address by traversing the page directory structure.
  *

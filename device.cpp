@@ -144,4 +144,3 @@ static void *emalloc(size_t size)
 		errx(1, "%s: out of memory", __func__);
 	return buf;
 }
-
