@@ -5,11 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define BUF_SIZE 1
-
-/*
- * TODO: check function return values
- */
+#define BUF_SIZE 15
 
 /* component's private data */
 struct l4trace_in {
@@ -80,21 +76,38 @@ void create_metadata_and_stream(bt_self_component *self_component,
     bt_stream_class_set_default_clock_class(stream_class, clock_class);
 
     /* Create event classes within the stream */
-    //TODO: only use if bt_stream_class_assings_automatic_event_class_id == BT_TRUE
     bt_event_class *event_class = bt_event_class_create(stream_class);
     bt_event_class_set_name(event_class, "l4_trace_record");
 
     /* Define event structure */
     bt_field_class *payload_field_class =
             bt_field_class_structure_create(trace_class);
+
     bt_field_class *number_field_class =
             bt_field_class_integer_unsigned_create(trace_class);
     bt_field_class_structure_append_member(payload_field_class, "number",
                                            number_field_class);
+    bt_field_class *ip_field_class =
+            bt_field_class_integer_unsigned_create(trace_class);
+    bt_field_class_structure_append_member(payload_field_class, "ip",
+                                           ip_field_class);
     bt_field_class *tsc_field_class =
             bt_field_class_integer_unsigned_create(trace_class);
     bt_field_class_structure_append_member(payload_field_class, "tsc",
                                            tsc_field_class);
+    bt_field_class *kclock_field_class =
+            bt_field_class_integer_unsigned_create(trace_class);
+    bt_field_class_structure_append_member(payload_field_class, "kclock",
+                                           kclock_field_class);
+    bt_field_class *type_field_class =
+            bt_field_class_integer_unsigned_create(trace_class);
+    bt_field_class_structure_append_member(payload_field_class, "type",
+                                           type_field_class);
+    bt_field_class *cpu_field_class =
+            bt_field_class_integer_unsigned_create(trace_class);
+    bt_field_class_structure_append_member(payload_field_class, "cpu",
+                                           cpu_field_class);
+
     bt_event_class_set_payload_field_class(event_class, payload_field_class);
     l4trace_in->event_class = event_class;
 
@@ -103,16 +116,19 @@ void create_metadata_and_stream(bt_self_component *self_component,
     bt_trace *trace = bt_trace_create(trace_class);
     /* Create on stream per cpu in the trace */
     l4trace_in->streams = malloc(l4trace_in->n_cpu * sizeof(bt_stream *));
-    //TODO: check return value
-    //if (!l4trace_in->streams)
-    //    return
     for (int i = 0; i < l4trace_in->n_cpu; i++) {
-        l4trace_in->streams[i] = bt_stream_create_with_id(stream_class, trace, i);
+        l4trace_in->streams[i] =
+            bt_stream_create_with_id(stream_class, trace, i);
     }
 
     /* Free unneeded references */
     bt_field_class_put_ref(payload_field_class);
     bt_field_class_put_ref(number_field_class);
+    bt_field_class_put_ref(ip_field_class);
+    bt_field_class_put_ref(tsc_field_class);
+    bt_field_class_put_ref(kclock_field_class);
+    bt_field_class_put_ref(type_field_class);
+    bt_field_class_put_ref(cpu_field_class);
     bt_trace_put_ref(trace);
     bt_clock_class_put_ref(clock_class);
     bt_stream_class_put_ref(stream_class);
@@ -127,7 +143,6 @@ bt_component_class_initialize_method_status l4trace_in_initialize(
         void *initialize_method_data
         )
 {
-    printf("component initialize\n");
     struct l4trace_in *l4trace_in = malloc(sizeof(struct l4trace_in));
     if (!l4trace_in)
         return BT_COMPONENT_CLASS_INITIALIZE_METHOD_STATUS_MEMORY_ERROR;
@@ -172,8 +187,6 @@ bt_component_class_initialize_method_status l4trace_in_initialize(
 static
 void l4trace_in_finalize(bt_self_component_source *self_component_source)
 {
-    printf("finalize component\n");
-
     struct l4trace_in *l4trace_in = bt_self_component_get_data(
         bt_self_component_source_as_self_component(self_component_source));
 
@@ -181,11 +194,13 @@ void l4trace_in_finalize(bt_self_component_source *self_component_source)
     bt_value_put_ref(l4trace_in->path_value);
     fclose(l4trace_in->file);
 
-    /* Free refrences */
+    /* Free events and streams */
     bt_event_class_put_ref(l4trace_in->event_class);
-    //TODO: free streams
-    //bt_stream_put_ref(l4trace_in->stream);
+    for (int i = 0; i < l4trace_in->n_cpu; i++)
+        bt_stream_put_ref(l4trace_in->streams[i]);
+    free(l4trace_in->streams);
 
+    /* Free private data */
     free(l4trace_in);
 }
 
@@ -196,8 +211,6 @@ l4trace_in_message_iterator_initialize(
         bt_self_message_iterator_configuration *configuration,
         bt_self_component_port_output *self_port)
 {
-    printf("iterator initialize\n");
-
     /* init iterators private data */
     struct l4trace_in_message_iterator *private =
             malloc(sizeof(struct l4trace_in_message_iterator));
@@ -216,7 +229,6 @@ static
 void l4trace_in_message_iterator_finalize(
         bt_self_message_iterator *self_message_iterator)
 {
-    printf("iterator finalize\n");
     struct l4trace_in_message_iterator *private =
             bt_self_message_iterator_get_data(self_message_iterator);
 
@@ -233,24 +245,18 @@ bt_message_iterator_class_next_method_status l4trace_in_message_iterator_next(
     struct l4trace_in_message_iterator *private =
         bt_self_message_iterator_get_data(self_message_iterator);
 
+    *count = 0;
+
     int n_read = fread(private->buffer, sizeof(l4_tracebuffer_entry_t),
                         BUF_SIZE, private->l4trace_in->file);
     if (n_read == EOF || feof(private->l4trace_in->file)) {
-        //TODO: create end of stream message
-        //message = bt_message_stream_end_create(self_message_iterator, stream?);
+        for (int i = 0; i < private->l4trace_in->n_cpu; i++, (*count)++)
+            messages[*count] = bt_message_stream_end_create(
+                self_message_iterator, private->l4trace_in->streams[i]);
         return BT_MESSAGE_ITERATOR_CLASS_NEXT_METHOD_STATUS_END;
     }
 
-    /*
-     * read from file
-     * for each record
-     *   drop if not type 2
-     *   create message
-     *   set type
-     */
-    *count = 0;
-    int i;
-    for (i = 0; i < BUF_SIZE; i++) {
+    for (int i = 0; i < BUF_SIZE; i++) {
         l4_tracebuffer_entry_t *e = &private->buffer[i];
         bt_message *message = bt_message_event_create_with_default_clock_snapshot(
                 self_message_iterator,
@@ -262,12 +268,24 @@ bt_message_iterator_class_next_method_status l4trace_in_message_iterator_next(
         bt_field *number_field = bt_field_structure_borrow_member_field_by_name(
                 payload_field, "number");
         bt_field_integer_unsigned_set_value(number_field, e->_number);
+        bt_field *ip_field = bt_field_structure_borrow_member_field_by_name(
+                payload_field, "ip");
+        bt_field_integer_unsigned_set_value(ip_field, e->_ip);
         bt_field *tsc_field = bt_field_structure_borrow_member_field_by_name(
                 payload_field, "tsc");
-        bt_field_integer_unsigned_set_value(tsc_field, e->_kclock);
+        bt_field_integer_unsigned_set_value(tsc_field, e->_tsc);
+        bt_field *klock_field = bt_field_structure_borrow_member_field_by_name(
+                payload_field, "kclock");
+        bt_field_integer_unsigned_set_value(klock_field, e->_kclock);
+        bt_field *type_field = bt_field_structure_borrow_member_field_by_name(
+                payload_field, "type");
+        bt_field_integer_unsigned_set_value(type_field, e->_type);
+        bt_field *cpu_field = bt_field_structure_borrow_member_field_by_name(
+                payload_field, "cpu");
+        bt_field_integer_unsigned_set_value(cpu_field, e->_cpu);
         messages[i] = message;
+        *count = i;
     }
-    *count = i;
 
     return BT_MESSAGE_ITERATOR_CLASS_NEXT_METHOD_STATUS_OK;
 }

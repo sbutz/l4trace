@@ -1,7 +1,10 @@
 LD_FLAGS = -shared $(pkg-config --libs babeltrace2)
 CFLGAS = -fPIC -c $(pkg-config --cflags babeltrace2)
 
-plugin.so: plugin.o
+SRCS = plugin.c
+OBJS = $(SRCS:.c=.o)
+
+plugin.so: $(OBJS)
 	ld $? -o $@ $(LD_FLAGS)
 
 .PHONY: clean
